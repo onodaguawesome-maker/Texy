@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Texy Messenger</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--yellow:#f5c842;--ink:#242319;--muted:#858477;--line:#ece9df;--paper:#fff;--bg:#f6f5ef}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,input{font:inherit}button{cursor:pointer;border:0}
+.hidden{display:none!important}.app{height:100dvh;display:flex;max-width:1500px;margin:auto;background:white;overflow:hidden}
+.sidebar{width:350px;flex-shrink:0;border-right:1px solid var(--line);display:flex;flex-direction:column}
+.brandbar{height:68px;padding:0 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line)}
+.mark{width:39px;height:39px;border-radius:13px;background:var(--yellow);display:grid;place-items:center;font-weight:900;font-size:25px}
+.brand{font-size:25px;font-weight:850;letter-spacing:-1.2px;flex:1}.subtle{color:var(--muted);font-size:12px}
+.iconbtn{background:transparent;padding:9px;border-radius:10px;font-size:19px;color:#666}.iconbtn:hover{background:#f4f2e9}
+.searchbox{padding:13px}.searchbox input,.field input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:12px;outline:none;background:#faf9f5}
+.searchbox input:focus,.field input:focus{border-color:#d5ad2e}
+.list{overflow:auto;flex:1}.person{display:flex;align-items:center;gap:11px;padding:12px 15px;border-bottom:1px solid #f5f4ef;cursor:pointer}
+.person:hover,.person.active{background:#fff8df}.avatar{width:46px;height:46px;border-radius:50%;object-fit:cover;background:#ffedb3;display:grid;place-items:center;font-weight:800;color:#715900;flex-shrink:0}
+.personinfo{min-width:0;flex:1}.personname{font-weight:700;font-size:14px}.handle{font-size:12px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:#f8f7f1}
+.welcome{margin:auto;text-align:center;padding:25px;color:var(--muted)}.welcome .mark{margin:0 auto 14px;width:62px;height:62px;font-size:36px}
+.chathead{height:68px;background:white;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:12px}
+.chathead .details{flex:1}.chathead strong{font-size:15px}.chathead small{display:block;color:var(--muted);margin-top:3px}
+.messages{flex:1;overflow:auto;padding:24px clamp(15px,5vw,65px);display:flex;flex-direction:column;gap:12px;background-color:#f8f7f1;background-image:radial-gradient(#e8e3d5 .7px,transparent .7px);background-size:19px 19px}
+.bubble{max-width:min(72%,560px);width:fit-content;padding:10px 13px;background:white;border-radius:14px 14px 14px 4px;box-shadow:0 1px 2px #0000000b;overflow-wrap:anywhere;font-size:14px;line-height:1.5}
+.bubble.mine{align-self:flex-end;background:#fff0b8;border-radius:14px 14px 4px 14px}
+.bubble .meta{font-size:10px;color:#8b846f;text-align:right;margin-top:5px}
+.composer{display:flex;gap:9px;padding:13px 17px;background:white;border-top:1px solid var(--line)}
+.composer input{flex:1;min-width:0;border:1px solid var(--line);border-radius:25px;padding:13px 16px;outline:none}
+.send,.primary{background:var(--yellow);padding:12px 19px;border-radius:12px;font-weight:750;color:#2d260e}
+.authwrap{min-height:100dvh;display:grid;place-items:center;padding:20px;background:var(--bg)}
+.authcard{width:min(440px,100%);background:white;border:1px solid var(--line);border-radius:23px;padding:28px;box-shadow:0 15px 50px #0000000b}
+.authbrand{display:flex;align-items:center;gap:10px;margin-bottom:22px}.authbrand strong{font-size:25px}
+.authcard h1{font-size:27px;margin:0 0 7px}.authcard p{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 18px}
+.field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}
+.field input[type=file]{padding:9px;background:white}.authbuttons{display:flex;gap:9px;margin-top:18px}.authbuttons button{flex:1}
+.secondary{background:#f1efe7;padding:12px 15px;border-radius:12px;font-weight:700}
+.status{font-size:12px!important;min-height:18px;margin-top:12px!important;color:#8b6b00!important}.status.error{color:#b42318!important}
+.profilebar{display:flex;align-items:center;gap:10px;padding:12px 15px;border-top:1px solid var(--line)}
+.profilebar .avatar{width:36px;height:36px}.profilebar .personinfo{flex:1}
+.mobileback{display:none}
+@media(max-width:700px){.sidebar{width:100%;border:0}.main{display:none}.app.openchat .sidebar{display:none}.app.openchat .main{display:flex}.mobileback{display:inline-block}.bubble{max-width:88%}}
+</style>
+</head>
+<body>
+<div id="auth" class="authwrap">
+  <section class="authcard">
+    <div class="authbrand"><div class="mark">t</div><strong>texy</strong></div>
+    <h1 id="authTitle">Welcome to Texy</h1>
+    <p id="authIntro">Create your account with your name, username and profile picture, or sign in.</p>
+    <div id="signupFields">
+      <div class="field"><label for="displayName">Your name</label><input id="displayName" maxlength="60" placeholder="e.g. Alex Johnson"></div>
+      <div class="field"><label for="username">Username</label><input id="username" maxlength="24" placeholder="e.g. alexjohnson"></div>
+      <div class="field"><label for="avatarFile">Profile picture</label><input id="avatarFile" type="file" accept="image/png,image/jpeg,image/webp"></div>
+    </div>
+    <div class="field"><label for="email">Email address</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com"></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" minlength="8" autocomplete="current-password" placeholder="At least 8 characters"></div>
+    <div class="authbuttons">
+      <button class="primary" id="signupBtn">Create account</button>
+      <button class="secondary" id="signinBtn">Sign in</button>
+    </div>
+    <p id="authStatus" class="status" aria-live="polite"></p>
+  </section>
+</div>
+
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brandbar"><div class="mark">t</div><div class="brand">texy</div><button class="iconbtn" id="newChat" title="Start chat">＋</button></div>
+    <div class="searchbox"><input id="userSearch" placeholder="Search people by username…"></div>
+    <div id="chatList" class="list"><div class="welcome">Your conversations will appear here.</div></div>
+    <div class="profilebar">
+      <img id="myAvatar" class="avatar" alt="Your profile picture">
+      <div class="personinfo"><div id="myName" class="personname"></div><div id="myUsername" class="handle"></div></div>
+      <button class="iconbtn" id="signout" title="Sign out">↪</button>
+    </div>
+  </aside>
+  <main class="main" id="mainPanel">
+    <div class="welcome" id="emptyState"><div class="mark">t</div><strong>Welcome to Texy</strong><p>Choose a conversation or find someone by username.</p></div>
+    <div id="conversation" class="hidden" style="display:flex;flex-direction:column;min-height:0;flex:1">
+      <header class="chathead">
+        <button class="iconbtn mobileback" id="back">←</button>
+        <img id="peerAvatar" class="avatar" alt="">
+        <div class="details"><strong id="peerName"></strong><small id="peerUsername"></small></div>
+      </header>
+      <section id="messages" class="messages" aria-live="polite"></section>
+      <form id="composer" class="composer"><input id="messageText" maxlength="4000" placeholder="Write a message…" autocomplete="off" required><button class="send" type="submit">Send</button></form>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  // Add your Supabase Project URL and publishable/anon key below.
+  const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL";
+  const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY";
+  const BUCKET = "avatars";
+  const $ = id => document.getElementById(id);
+  const status = (id, msg, error=false) => { $(id).textContent=msg; $(id).classList.toggle("error",error); };
+  if (!window.supabase || SUPABASE_URL.startsWith("PASTE_") || SUPABASE_ANON_KEY.startsWith("PASTE_")) {
+    status("authStatus","Add your Supabase URL and publishable key in index.html before using Texy.",true);
+    return;
+  }
+  const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  let me=null, myProfile=null, activeChat=null, realtime=null, pendingAvatar=null, peopleCache=[];
+
+  const safe = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const initials = name => (name||"T").trim().slice(0,1).toUpperCase();
+  function avatarMarkup(profile, id="") {
+    const src=profile?.avatar_url;
+    return src ? `<img class="avatar" id="${id}" src="${safe(src)}" alt="">` : `<div class="avatar" id="${id}">${safe(initials(profile?.display_name))}</div>`;
+  }
+
+  async function loadProfile(user) {
+    const {data,error}=await db.from("texy_profiles").select("*").eq("id",user.id).single();
+    if(error) throw error;
+    return data;
+  }
+  async function uploadAvatar(file) {
+    if(!file) return myProfile?.avatar_url || null;
+    if(!["image/jpeg","image/png","image/webp"].includes(file.type)) throw new Error("Choose a JPG, PNG or WebP image.");
+    if(file.size>3*1024*1024) throw new Error("Profile pictures must be 3 MB or smaller.");
+    const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+    const path=`${me.id}/${crypto.randomUUID()}.${ext}`;
+    const {error}=await db.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type});
+    if(error) throw error;
+    const {data}=db.storage.from(BUCKET).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function finishLogin(user) {
+    me=user;
+    myProfile=await loadProfile(user);
+    $("auth").classList.add("hidden");$("app").classList.remove("hidden");
+    $("myName").textContent=myProfile.display_name;
+    $("myUsername").textContent="@"+myProfile.username;
+    $("myAvatar").src=myProfile.avatar_url || "";
+    $("myAvatar").alt=myProfile.display_name;
+    await loadChats();
+  }
+
+  $("signupBtn").onclick=async()=>{
+    const display_name=$("displayName").value.trim();
+    const username=$("username").value.trim().toLowerCase().replace(/^@/,"");
+    const email=$("email").value.trim(), password=$("password").value;
+    pendingAvatar=$("avatarFile").files[0]||null;
+    if(!display_name||!username||!email||password.length<8){status("authStatus","Enter your name, username, email and a password of at least 8 characters.",true);return;}
+    if(!/^[a-z0-9_]{3,24}$/.test(username)){status("authStatus","Username must be 3–24 characters using letters, numbers or underscores.",true);return;}
+    status("authStatus","Creating your account…");
+    const {data,error}=await db.auth.signUp({email,password,options:{data:{display_name,username}}});
+    if(error){status("authStatus",error.message,true);return;}
+    if(data.session){
+      try{
+        me=data.user;
+        if(pendingAvatar){const url=await uploadAvatar(pendingAvatar);const {error:e}=await db.from("texy_profiles").update({avatar_url:url}).eq("id",me.id);if(e)throw e;}
+        await finishLogin(data.user);
+      }catch(e){status("authStatus",e.message,true);}
+    }else{
+      status("authStatus","Account created. Confirm your email, then return here and sign in. Keep this page open if you want to upload the selected profile picture after confirmation.");
+    }
+  };
+
+  $("signinBtn").onclick=async()=>{
+    const email=$("email").value.trim(),password=$("password").value;
+    status("authStatus","Signing in…");
+    const {data,error}=await db.auth.signInWithPassword({email,password});
+    if(error){status("authStatus",error.message,true);return;}
+    try{
+      me=data.user;
+      if(pendingAvatar){const url=await uploadAvatar(pendingAvatar);const {error:avatarError}=await db.from("texy_profiles").update({avatar_url:url}).eq("id",me.id);if(avatarError)throw avatarError;}
+      await finishLogin(data.user);
+    }catch(e){status("authStatus",e.message,true);}
+  };
+
+  async function loadChats(){
+    const {data:members,error}=await db.from("texy_chat_members").select("chat_id").eq("user_id",me.id);
+    if(error){$("chatList").textContent=error.message;return;}
+    const list=$("chatList");list.innerHTML="";
+    for(const membership of members||[]){
+      const {data:chat}=await db.from("texy_chats").select("*").eq("id",membership.chat_id).maybeSingle();
+      if(!chat)continue;
+      const {data:others}=await db.from("texy_chat_members").select("user_id").eq("chat_id",chat.id).neq("user_id",me.id).limit(1);
+      let other=null;
+      if(others?.[0]){
+        const {data:profile}=await db.from("texy_profiles").select("id,display_name,username,avatar_url").eq("id",others[0].user_id).maybeSingle();
+        other=profile;
+      }
+      const label=chat.chat_type==="group"?chat.title:(other?.display_name||"Private chat");
+      const item=document.createElement("div");item.className="person";
+      if(other?.avatar_url){const im=document.createElement("img");im.className="avatar";im.src=other.avatar_url;im.alt="";item.append(im);}
+      else{const img=document.createElement("div");img.className="avatar";img.textContent=initials(label);item.append(img);}
+      const info=document.createElement("div");info.className="personinfo";
+      const n=document.createElement("div");n.className="personname";n.textContent=label;
+      const h=document.createElement("div");h.className="handle";h.textContent=other?"@"+other.username:"Group conversation";
+      info.append(n,h);item.append(info);item.onclick=()=>openChat(chat,other);list.append(item);
+    }
+    if(!list.children.length)list.innerHTML='<div class="welcome">No conversations yet. Search for someone by username to start chatting.</div>';
+  }
+
+  async function findPeople(query){
+    if(!query)return;
+    const {data,error}=await db.from("texy_profiles").select("id,display_name,username,avatar_url").ilike("username",query.replace(/^@/,"")+"%").neq("id",me.id).limit(15);
+    if(error){alert(error.message);return;}
+    peopleCache=data||[];
+    const list=$("chatList");list.innerHTML="";
+    if(!peopleCache.length){list.innerHTML='<div class="welcome">No matching users found.</div>';return;}
+    peopleCache.forEach(p=>{
+      const item=document.createElement("div");item.className="person";
+      if(p.avatar_url){const img=document.createElement("img");img.className="avatar";img.src=p.avatar_url;item.append(img);}
+      else{const av=document.createElement("div");av.className="avatar";av.textContent=initials(p.display_name);item.append(av);}
+      const info=document.createElement("div");info.className="personinfo";
+      const n=document.createElement("div");n.className="personname";n.textContent=p.display_name;
+      const h=document.createElement("div");h.className="handle";h.textContent="@"+p.username;
+      info.append(n,h);item.append(info);
+      const b=document.createElement("button");b.className="secondary";b.textContent="Message";b.onclick=async e=>{e.stopPropagation();await startPrivateChat(p);};
+      item.append(b);list.append(item);
+    });
+  }
+  let searchTimer;
+  $("userSearch").addEventListener("input",e=>{
+    clearTimeout(searchTimer);const q=e.target.value.trim();
+    if(!q){loadChats();return;}
+    searchTimer=setTimeout(()=>findPeople(q),250);
+  });
+  $("newChat").onclick=()=>{$("userSearch").focus();$("userSearch").placeholder="Type a username to find people…";};
+
+  async function startPrivateChat(peer){
+    const {data:existing,error:findErr}=await db.from("texy_chat_members").select("chat_id").eq("user_id",me.id);
+    if(findErr){alert(findErr.message);return;}
+    for(const row of existing||[]){
+      const {data:chat}=await db.from("texy_chats").select("*").eq("id",row.chat_id).eq("chat_type","private").maybeSingle();
+      if(!chat)continue;
+      const {data:other}=await db.from("texy_chat_members").select("user_id").eq("chat_id",row.chat_id).eq("user_id",peer.id).maybeSingle();
+      if(other){await openChat(chat,peer);return;}
+    }
+    const {data:chat,error}=await db.from("texy_chats").insert({chat_type:"private",created_by:me.id}).select().single();
+    if(error){alert(error.message);return;}
+    const {error:memberError}=await db.from("texy_chat_members").insert([{chat_id:chat.id,user_id:me.id},{chat_id:chat.id,user_id:peer.id}]);
+    if(memberError){alert(memberError.message);return;}
+    await loadChats();await openChat(chat,peer);
+  }
+
+  async function openChat(chat,peer){
+    activeChat=chat;
+    $("emptyState").classList.add("hidden");$("conversation").classList.remove("hidden");
+    $("app").classList.add("openchat");
+    $("peerName").textContent=chat.chat_type==="group"?chat.title:(peer?.display_name||"Texy user");
+    $("peerUsername").textContent=peer?"@"+peer.username:"";
+    const old=$("peerAvatar");if(peer?.avatar_url){old.src=peer.avatar_url;old.style.display="block";}else{old.style.display="none";}
+    await loadMessages();
+    if(realtime)await db.removeChannel(realtime);
+    realtime=db.channel("messages-"+chat.id).on("postgres_changes",{event:"INSERT",schema:"public",table:"texy_messages",filter:"chat_id=eq."+chat.id},payload=>{
+      if(payload.new.sender_id!==me.id)addMessageToPage(payload.new);
+    }).subscribe();
+  }
+
+  function addMessageToPage(m){
+    const el=document.createElement("div");el.className="bubble"+(m.sender_id===me.id?" mine":"");
+    const body=document.createElement("div");body.textContent=m.content;
+    const meta=document.createElement("div");meta.className="meta";meta.textContent=new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    el.append(body,meta);$("messages").append(el);$("messages").scrollTop=$("messages").scrollHeight;
+  }
+  async function loadMessages(){
+    const {data,error}=await db.from("texy_messages").select("*").eq("chat_id",activeChat.id).is("deleted_at",null).order("created_at",{ascending:true}).limit(200);
+    if(error){$("messages").textContent=error.message;return;}
+    $("messages").innerHTML="";(data||[]).forEach(addMessageToPage);
+  }
+  $("composer").onsubmit=async e=>{
+    e.preventDefault();const content=$("messageText").value.trim();if(!content||!activeChat)return;
+    $("messageText").value="";
+    const {error}=await db.from("texy_messages").insert({chat_id:activeChat.id,sender_id:me.id,content});
+    if(error){alert(error.message);$("messageText").value=content;}
+  };
+  $("back").onclick=()=>$("app").classList.remove("openchat");
+  $("signout").onclick=async()=>{if(realtime)await db.removeChannel(realtime);await db.auth.signOut();location.reload();};
+
+  db.auth.getSession().then(async({data})=>{
+    if(data.session){try{await finishLogin(data.session.user);}catch(e){status("authStatus",e.message,true);}}
+  });
+})();
+</script>
+</body>
+</html>
